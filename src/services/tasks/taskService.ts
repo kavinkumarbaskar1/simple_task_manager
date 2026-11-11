@@ -1,4 +1,10 @@
-import type { Task, TaskInput, TaskStatus } from "../../domain/tasks/taskTypes";
+import type {
+  Task,
+  TaskInput,
+  TaskStatus,
+  TaskValidationError,
+} from "../../domain/tasks/taskTypes";
+import { validateTaskInput } from "../../domain/tasks/taskValidation";
 import {
   readTasksFromStorage,
   writeTasksToStorage,
@@ -8,11 +14,13 @@ import {
 export type TaskServiceErrorCode =
   | TaskStorageError["code"]
   | "not_found"
-  | "invalid_request";
+  | "invalid_request"
+  | "validation_failed";
 
 export interface TaskServiceError {
   code: TaskServiceErrorCode;
   message: string;
+  fieldErrors?: TaskValidationError[];
 }
 
 export type TaskServiceMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -39,6 +47,8 @@ export interface TaskListQuery {
   status?: TaskStatus;
 }
 
+export type TaskCreateInput = Partial<TaskInput>;
+
 export type TaskUpdateInput = TaskInput & {
   status: TaskStatus;
 };
@@ -57,7 +67,13 @@ export function getTasks(query: TaskListQuery = {}): TaskServiceResponse<Task[]>
   return serviceSuccess("GET", taskListRoute(query), 200, tasks);
 }
 
-export function postTask(input: TaskInput): TaskServiceResponse<Task> {
+export function postTask(input: TaskCreateInput): TaskServiceResponse<Task> {
+  const validation = validateTaskInput(input);
+
+  if (!validation.isValid) {
+    return validationError("POST", "/tasks", validation.errors);
+  }
+
   const storedTasks = readTasksFromStorage();
 
   if (!storedTasks.ok) {
@@ -66,10 +82,10 @@ export function postTask(input: TaskInput): TaskServiceResponse<Task> {
 
   const task: Task = {
     id: createTaskId(),
-    title: input.title.trim(),
+    title: input.title?.trim() ?? "",
     description: normalizeOptionalText(input.description),
-    dueDate: input.dueDate,
-    priority: input.priority || "Medium",
+    dueDate: input.dueDate ?? "",
+    priority: input.priority as Task["priority"],
     status: "Pending",
   };
   const saveError = writeTasksFromService([...storedTasks.data, task], "POST", "/tasks");
@@ -241,6 +257,18 @@ function serviceError(
   };
 }
 
+function validationError(
+  method: TaskServiceMethod,
+  route: string,
+  fieldErrors: TaskValidationError[],
+): TaskServiceFailure {
+  return serviceError(method, route, 400, {
+    code: "validation_failed",
+    message: "Task details need attention.",
+    fieldErrors,
+  });
+}
+
 function taskListRoute(query: TaskListQuery): string {
   return query.status ? `/tasks?status=${query.status}` : "/tasks";
 }
@@ -256,9 +284,27 @@ function normalizeOptionalText(value: string | undefined): string | undefined {
 }
 
 function createTaskId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
   }
 
-  return `task-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  if (typeof globalThis.crypto?.getRandomValues === "function") {
+    const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+    return [...bytes]
+      .map((byte, index) => {
+        const value = byte.toString(16).padStart(2, "0");
+        return [4, 6, 8, 10].includes(index) ? `-${value}` : value;
+      })
+      .join("");
+  }
+
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (token) => {
+    const randomValue = Math.floor(Math.random() * 16);
+    const value = token === "x" ? randomValue : (randomValue & 0x3) | 0x8;
+
+    return value.toString(16);
+  });
 }

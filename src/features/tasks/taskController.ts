@@ -13,6 +13,7 @@ import {
   patchTaskComplete,
   postTask,
   putTask,
+  type TaskCreateInput,
   type TaskServiceError,
   type TaskUpdateInput,
 } from "../../services/tasks/taskService";
@@ -53,7 +54,7 @@ export function findTask(id: string): TaskControllerResult<Task> {
   return controllerSuccess(response.data);
 }
 
-export function createTask(input: TaskInput): TaskControllerResult<Task> {
+export function createTask(input: TaskCreateInput): TaskControllerResult<Task> {
   const validation = validateTaskInput(input);
 
   if (!validation.isValid) {

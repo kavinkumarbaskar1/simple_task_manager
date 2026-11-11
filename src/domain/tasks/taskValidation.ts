@@ -18,15 +18,15 @@ export function isTaskPriority(value: string): value is TaskPriority {
 }
 
 export function validateRequiredTaskFields(
-  input: Pick<TaskInput, TaskRequiredField>,
+  input: Partial<Pick<TaskInput, TaskRequiredField>>,
 ): TaskValidationError[] {
   const errors: TaskValidationError[] = [];
 
-  if (!input.title.trim()) {
+  if (!input.title?.trim()) {
     errors.push({ field: "title", message: requiredFieldMessages.title });
   }
 
-  if (!input.dueDate.trim()) {
+  if (!input.dueDate?.trim()) {
     errors.push({ field: "dueDate", message: requiredFieldMessages.dueDate });
   }
 
@@ -37,7 +37,7 @@ export function validateRequiredTaskFields(
   return errors;
 }
 
-export function validateTaskInput(input: TaskInput): TaskValidationResult {
+export function validateTaskInput(input: Partial<TaskInput>): TaskValidationResult {
   const errors = validateRequiredTaskFields(input);
 
   return {

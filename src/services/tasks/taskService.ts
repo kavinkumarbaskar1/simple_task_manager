@@ -91,13 +91,13 @@ export function postTask(input: TaskCreateInput): TaskServiceResponse<Task> {
     priority: input.priority as Task["priority"],
     status: "Pending",
   };
-  const saveError = writeTasksFromService([...storedTasks.data, task], "POST", "/tasks");
+  const savedTasks = writeTasksFromService([...storedTasks.data, task], "POST", "/tasks");
 
-  if (saveError) {
-    return saveError;
+  if (!savedTasks.ok) {
+    return savedTasks;
   }
 
-  return serviceSuccess("POST", "/tasks", 201, task);
+  return serviceSuccess("POST", "/tasks", 201, findPersistedTask(savedTasks.data, task.id) ?? task);
 }
 
 export function getTask(id: string): TaskServiceResponse<Task> {
@@ -154,13 +154,13 @@ export function putTask(id: string, input: TaskUpdateInput): TaskServiceResponse
   const nextTasks = [...storedTasks.data];
   nextTasks[taskIndex] = updatedTask;
 
-  const saveError = writeTasksFromService(nextTasks, "PUT", route);
+  const savedTasks = writeTasksFromService(nextTasks, "PUT", route);
 
-  if (saveError) {
-    return saveError;
+  if (!savedTasks.ok) {
+    return savedTasks;
   }
 
-  return serviceSuccess("PUT", route, 200, updatedTask);
+  return serviceSuccess("PUT", route, 200, findPersistedTask(savedTasks.data, id) ?? updatedTask);
 }
 
 export function patchTaskComplete(id: string): TaskServiceResponse<Task> {
@@ -203,14 +203,18 @@ function writeTasksFromService(
   tasks: readonly Task[],
   method: TaskServiceMethod,
   route: string,
-): TaskServiceFailure | null {
+): TaskServiceResponse<Task[]> {
   const savedTasks = writeTasksToStorage(tasks);
 
   if (!savedTasks.ok) {
     return serviceError(method, route, 500, savedTasks.error);
   }
 
-  return null;
+  return serviceSuccess(method, route, 200, savedTasks.data);
+}
+
+function findPersistedTask(tasks: readonly Task[], id: string): Task | undefined {
+  return tasks.find((task) => task.id === id);
 }
 
 function serviceSuccess<T>(

@@ -38,13 +38,17 @@ export interface TaskListOptions {
 }
 
 export function listTasks(options: TaskListOptions = {}): TaskControllerResult<Task[]> {
-  const response = options.status ? getTasks({ status: options.status }) : getTasks();
+  const response = hasListStatusFilter(options) ? getTasks({ status: options.status }) : getTasks();
 
   if (!response.ok) {
     return controllerFailure(response.error);
   }
 
   return controllerSuccess(sortTasksByDueDateAsc(response.data));
+}
+
+function hasListStatusFilter(options: TaskListOptions): options is { status: TaskStatus } {
+  return options.status === "Pending" || options.status === "Completed";
 }
 
 export function findTask(id: string): TaskControllerResult<Task> {

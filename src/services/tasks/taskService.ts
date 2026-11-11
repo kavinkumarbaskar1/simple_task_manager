@@ -4,6 +4,7 @@ import type {
   TaskStatus,
   TaskValidationError,
 } from "../../domain/tasks/taskTypes";
+import { sortTasksByDueDateAsc } from "../../domain/tasks/taskSorting";
 import { validateTaskInput, validateTaskUpdateInput } from "../../domain/tasks/taskValidation";
 import {
   completeTaskInStorage,
@@ -62,11 +63,11 @@ export function getTasks(query: TaskListQuery = {}): TaskServiceResponse<Task[]>
     return serviceError("GET", "/tasks", 500, storedTasks.error);
   }
 
-  const tasks = hasStatusFilter(query)
+  const filteredTasks = hasStatusFilter(query)
     ? storedTasks.data.filter((task) => task.status === query.status)
     : [...storedTasks.data];
 
-  return serviceSuccess("GET", taskListRoute(query), 200, tasks);
+  return serviceSuccess("GET", taskListRoute(query), 200, sortTasksByDueDateAsc(filteredTasks));
 }
 
 export function postTask(input: TaskCreateInput): TaskServiceResponse<Task> {

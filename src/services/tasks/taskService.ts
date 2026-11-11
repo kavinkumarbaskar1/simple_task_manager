@@ -1,6 +1,5 @@
 import type {
   Task,
-  TaskInput,
   TaskStatus,
   TaskValidationError,
 } from "../../domain/tasks/taskTypes";
@@ -11,52 +10,49 @@ import {
   deleteTaskFromStorage,
   readTasksFromStorage,
   writeTasksToStorage,
-  type TaskStorageError,
 } from "../../storage/localTaskStorage";
+import type {
+  TaskCreateInput,
+  TaskListQuery,
+  TaskServiceContract,
+  TaskServiceError,
+  TaskServiceFailure,
+  TaskServiceMethod,
+  TaskServiceResponse,
+  TaskServiceSuccess,
+  TaskUpdateInput,
+} from "./taskServiceContract";
 
-export type TaskServiceErrorCode =
-  | TaskStorageError["code"]
-  | "not_found"
-  | "invalid_request"
-  | "validation_failed";
+export type {
+  TaskCreateInput,
+  TaskListQuery,
+  TaskServiceContract,
+  TaskServiceError,
+  TaskServiceErrorCode,
+  TaskServiceFailure,
+  TaskServiceMethod,
+  TaskServiceResponse,
+  TaskServiceSuccess,
+  TaskUpdateInput,
+} from "./taskServiceContract";
 
-export interface TaskServiceError {
-  code: TaskServiceErrorCode;
-  message: string;
-  fieldErrors?: TaskValidationError[];
-}
-
-export type TaskServiceMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-
-export interface TaskServiceSuccess<T> {
-  ok: true;
-  status: number;
-  route: string;
-  method: TaskServiceMethod;
-  data: T;
-}
-
-export interface TaskServiceFailure {
-  ok: false;
-  status: number;
-  route: string;
-  method: TaskServiceMethod;
-  error: TaskServiceError;
-}
-
-export type TaskServiceResponse<T> = TaskServiceSuccess<T> | TaskServiceFailure;
-
-export interface TaskListQuery {
-  status?: TaskStatus;
-}
-
-export type TaskCreateInput = Partial<TaskInput>;
-
-export type TaskUpdateInput = TaskInput & {
-  status: TaskStatus;
+export const taskService: TaskServiceContract = {
+  getTasks,
+  postTask,
+  getTask,
+  putTask,
+  patchTaskComplete,
+  deleteTask,
 };
 
 export function getTasks(query: TaskListQuery = {}): TaskServiceResponse<Task[]> {
+  if (query.status !== undefined && !isTaskStatus(query.status)) {
+    return serviceError("GET", "/tasks", 400, {
+      code: "invalid_request",
+      message: "Task status filter must be Pending or Completed.",
+    });
+  }
+
   const storedTasks = readTasksFromStorage();
 
   if (!storedTasks.ok) {
@@ -122,6 +118,14 @@ export function getTask(id: string): TaskServiceResponse<Task> {
 
 export function putTask(id: string, input: TaskUpdateInput): TaskServiceResponse<Task> {
   const route = taskRoute(id);
+
+  if (!isTaskStatus(input.status)) {
+    return serviceError("PUT", route, 400, {
+      code: "invalid_request",
+      message: "Task status must be Pending or Completed.",
+    });
+  }
+
   const validation = validateTaskUpdateInput(input);
 
   if (!validation.isValid) {
@@ -268,7 +272,11 @@ function taskRoute(id: string): string {
 }
 
 function hasStatusFilter(query: TaskListQuery): query is { status: TaskStatus } {
-  return query.status === "Pending" || query.status === "Completed";
+  return isTaskStatus(query.status);
+}
+
+function isTaskStatus(value: unknown): value is TaskStatus {
+  return value === "Pending" || value === "Completed";
 }
 
 function normalizeOptionalText(value: string | undefined): string | undefined {

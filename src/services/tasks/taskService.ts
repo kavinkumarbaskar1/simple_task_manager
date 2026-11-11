@@ -60,9 +60,9 @@ export function getTasks(query: TaskListQuery = {}): TaskServiceResponse<Task[]>
     return serviceError("GET", "/tasks", 500, storedTasks.error);
   }
 
-  const tasks = query.status
+  const tasks = hasStatusFilter(query)
     ? storedTasks.data.filter((task) => task.status === query.status)
-    : storedTasks.data;
+    : [...storedTasks.data];
 
   return serviceSuccess("GET", taskListRoute(query), 200, tasks);
 }
@@ -270,11 +270,15 @@ function validationError(
 }
 
 function taskListRoute(query: TaskListQuery): string {
-  return query.status ? `/tasks?status=${query.status}` : "/tasks";
+  return hasStatusFilter(query) ? `/tasks?status=${query.status}` : "/tasks";
 }
 
 function taskRoute(id: string): string {
   return `/tasks/${encodeURIComponent(id)}`;
+}
+
+function hasStatusFilter(query: TaskListQuery): query is { status: TaskStatus } {
+  return query.status === "Pending" || query.status === "Completed";
 }
 
 function normalizeOptionalText(value: string | undefined): string | undefined {

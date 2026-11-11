@@ -47,6 +47,12 @@ export function listTasks(options: TaskListOptions = {}): TaskControllerResult<T
   return controllerSuccess(sortTasksByDueDateAsc(response.data));
 }
 
+export function loadPersistedTasks(
+  options: TaskListOptions = {},
+): TaskControllerResult<Task[]> {
+  return listTasks(options);
+}
+
 function hasListStatusFilter(options: TaskListOptions): options is { status: TaskStatus } {
   return options.status === "Pending" || options.status === "Completed";
 }

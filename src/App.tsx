@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { TaskDashboard } from "./components/tasks/TaskDashboard";
 import { TaskForm } from "./components/tasks/TaskForm";
-import { listTasks } from "./features/tasks/taskController";
+import { loadPersistedTasks } from "./features/tasks/taskController";
 import type { Task } from "./domain/tasks/taskTypes";
 import { taskStorageKey } from "./storage/localTaskStorage";
 
@@ -11,7 +11,7 @@ export function App() {
   const [taskError, setTaskError] = useState<string | null>(null);
 
   const loadTasks = useCallback(() => {
-    const result = listTasks();
+    const result = loadPersistedTasks();
 
     if (result.ok) {
       setTasks(result.data);
@@ -44,6 +44,11 @@ export function App() {
     loadTasks();
   }
 
+  function handleTasksRefreshed(refreshedTasks: readonly Task[]) {
+    setTasks([...refreshedTasks]);
+    setTaskError(null);
+  }
+
   return (
     <main className="app-shell" aria-labelledby="app-title">
       <section className="hero">
@@ -61,7 +66,11 @@ export function App() {
 
       <TaskForm onTaskCreated={handleTaskCreated} />
 
-      <TaskDashboard tasks={tasks} error={taskError} />
+      <TaskDashboard
+        tasks={tasks}
+        error={taskError}
+        onTasksRefreshed={handleTasksRefreshed}
+      />
     </main>
   );
 }

@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type { Task } from "../../domain/tasks/taskTypes";
-import { completeTask, listTasks, removeTask } from "../../features/tasks/taskController";
+import {
+  completeTask,
+  loadPersistedTasks,
+  removeTask,
+} from "../../features/tasks/taskController";
 import { StatusFilter, type TaskStatusFilter } from "./StatusFilter";
 import { TaskCard } from "./TaskCard";
 import { TaskEmptyState } from "./TaskEmptyState";
@@ -9,23 +13,29 @@ import { TaskEmptyState } from "./TaskEmptyState";
 interface TaskDashboardProps {
   tasks: readonly Task[];
   error?: string | null;
+  onTasksRefreshed?: (tasks: readonly Task[]) => void;
 }
 
-export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
+export function TaskDashboard({ tasks, error, onTasksRefreshed }: TaskDashboardProps) {
   const [allTasks, setAllTasks] = useState<Task[]>(() => [...tasks]);
-  const [displayedTasks, setDisplayedTasks] = useState<Task[]>(() => [...tasks]);
   const [selectedFilter, setSelectedFilter] = useState<TaskStatusFilter>("All");
   const [filterError, setFilterError] = useState<string | null>(null);
   const [completionError, setCompletionError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
 
   useEffect(() => {
     setAllTasks([...tasks]);
-    setDisplayedTasks(filterTasks(tasks, selectedFilter));
     setFilterError(null);
     setCompletionError(null);
     setDeleteError(null);
-  }, [tasks, selectedFilter]);
+    setRefreshError(null);
+  }, [tasks]);
+
+  const displayedTasks = useMemo(
+    () => filterTasks(allTasks, selectedFilter),
+    [allTasks, selectedFilter],
+  );
 
   const dashboardStats = useMemo(
     () => [
@@ -42,14 +52,8 @@ export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
     [displayedTasks],
   );
 
-  function handleTaskUpdated(updatedTask: Task) {
-    setAllTasks((currentTasks) => {
-      const nextTasks = currentTasks.map((task) =>
-        task.id === updatedTask.id ? updatedTask : task,
-      );
-      setDisplayedTasks(filterTasks(nextTasks, selectedFilter));
-      return nextTasks;
-    });
+  function handleTaskUpdated() {
+    refreshDashboardTasks(selectedFilter, setRefreshError);
   }
 
   function handleTaskCompleted(taskId: string) {
@@ -61,13 +65,7 @@ export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
     }
 
     setCompletionError(null);
-    setAllTasks((currentTasks) => {
-      const nextTasks = currentTasks.map((task) =>
-        task.id === result.data.id ? result.data : task,
-      );
-      setDisplayedTasks(filterTasks(nextTasks, selectedFilter));
-      return nextTasks;
-    });
+    refreshDashboardTasks(selectedFilter, setCompletionError);
   }
 
   function handleTaskDeleted(taskId: string) {
@@ -79,33 +77,31 @@ export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
     }
 
     setDeleteError(null);
-    setAllTasks((currentTasks) => {
-      const nextTasks = currentTasks.filter((task) => task.id !== taskId);
-      setDisplayedTasks(filterTasks(nextTasks, selectedFilter));
-      return nextTasks;
-    });
+    refreshDashboardTasks(selectedFilter, setDeleteError);
   }
 
   function handleFilterChange(nextFilter: TaskStatusFilter) {
     setSelectedFilter(nextFilter);
     setCompletionError(null);
     setDeleteError(null);
+    refreshDashboardTasks(nextFilter, setFilterError);
+  }
 
-    if (nextFilter === "All") {
-      setFilterError(null);
-      setDisplayedTasks([...allTasks]);
-      return;
-    }
-
-    const result = listTasks({ status: nextFilter });
+  function refreshDashboardTasks(
+    nextFilter: TaskStatusFilter,
+    setError: (message: string | null) => void,
+  ) {
+    const result = loadPersistedTasks();
 
     if (!result.ok) {
-      setFilterError(result.error.message);
+      setError(result.error.message);
       return;
     }
 
-    setFilterError(null);
-    setDisplayedTasks(result.data);
+    setError(null);
+    setRefreshError(null);
+    setAllTasks(result.data);
+    onTasksRefreshed?.(result.data);
   }
 
   return (
@@ -132,6 +128,7 @@ export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
         {filterError ? <p className="task-error">{filterError}</p> : null}
         {completionError ? <p className="task-error">{completionError}</p> : null}
         {deleteError ? <p className="task-error">{deleteError}</p> : null}
+        {refreshError ? <p className="task-error">{refreshError}</p> : null}
 
         {displayedTasks.length > 0 ? (
           <ul className="task-list" aria-label="Tasks">

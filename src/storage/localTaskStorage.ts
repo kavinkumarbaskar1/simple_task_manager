@@ -36,11 +36,23 @@ export function readTasksFromStorage(): TaskStorageResult<Task[]> {
 
     const parsedTasks: unknown = JSON.parse(serializedTasks);
 
-    if (!Array.isArray(parsedTasks) || !parsedTasks.every(isStoredTask)) {
+    if (!Array.isArray(parsedTasks)) {
       return storageFailure("invalid_data", "Saved tasks could not be read.");
     }
 
-    return { ok: true, data: parsedTasks };
+    const storedTasks: Task[] = [];
+
+    for (const parsedTask of parsedTasks) {
+      const storedTask = toStoredTask(parsedTask);
+
+      if (!storedTask) {
+        return storageFailure("invalid_data", "Saved tasks could not be read.");
+      }
+
+      storedTasks.push(storedTask);
+    }
+
+    return { ok: true, data: storedTasks };
   } catch {
     return storageFailure("read_failed", "Saved tasks could not be read.");
   }
@@ -54,7 +66,7 @@ export function writeTasksToStorage(tasks: readonly Task[]): TaskStorageResult<T
   }
 
   try {
-    const tasksToStore = [...tasks];
+    const tasksToStore = tasks.map(toTaskStorageRecord);
     storage.setItem(STORAGE_KEY, JSON.stringify(tasksToStore));
 
     return { ok: true, data: tasksToStore };
@@ -157,21 +169,47 @@ function storageFailure(code: TaskStorageErrorCode, message: string): TaskStorag
   };
 }
 
-function isStoredTask(value: unknown): value is Task {
+function toStoredTask(value: unknown): Task | null {
   if (!value || typeof value !== "object") {
-    return false;
+    return null;
   }
 
   const candidate = value as Record<string, unknown>;
+  const id = candidate.id;
+  const title = candidate.title;
+  const description = candidate.description;
+  const dueDate = candidate.dueDate;
+  const priority = candidate.priority;
+  const status = candidate.status;
 
-  return (
-    typeof candidate.id === "string" &&
-    typeof candidate.title === "string" &&
-    (candidate.description === undefined || typeof candidate.description === "string") &&
-    typeof candidate.dueDate === "string" &&
-    (candidate.priority === "Low" ||
-      candidate.priority === "Medium" ||
-      candidate.priority === "High") &&
-    (candidate.status === "Pending" || candidate.status === "Completed")
-  );
+  if (
+    typeof id !== "string" ||
+    typeof title !== "string" ||
+    (description !== undefined && typeof description !== "string") ||
+    typeof dueDate !== "string" ||
+    (priority !== "Low" && priority !== "Medium" && priority !== "High") ||
+    (status !== "Pending" && status !== "Completed")
+  ) {
+    return null;
+  }
+
+  return {
+    id,
+    title,
+    description,
+    dueDate,
+    priority,
+    status,
+  };
+}
+
+function toTaskStorageRecord(task: Task): Task {
+  return {
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    dueDate: task.dueDate,
+    priority: task.priority,
+    status: task.status,
+  };
 }

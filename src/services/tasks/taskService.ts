@@ -4,7 +4,7 @@ import type {
   TaskStatus,
   TaskValidationError,
 } from "../../domain/tasks/taskTypes";
-import { validateTaskInput } from "../../domain/tasks/taskValidation";
+import { validateTaskInput, validateTaskUpdateInput } from "../../domain/tasks/taskValidation";
 import {
   readTasksFromStorage,
   writeTasksToStorage,
@@ -119,6 +119,12 @@ export function getTask(id: string): TaskServiceResponse<Task> {
 
 export function putTask(id: string, input: TaskUpdateInput): TaskServiceResponse<Task> {
   const route = taskRoute(id);
+  const validation = validateTaskUpdateInput(input);
+
+  if (!validation.isValid) {
+    return validationError("PUT", route, validation.errors);
+  }
+
   const storedTasks = readTasksFromStorage();
 
   if (!storedTasks.ok) {
@@ -139,8 +145,8 @@ export function putTask(id: string, input: TaskUpdateInput): TaskServiceResponse
     title: input.title.trim(),
     description: normalizeOptionalText(input.description),
     dueDate: input.dueDate,
-    priority: input.priority || "Medium",
-    status: input.status,
+    priority: input.priority as Task["priority"],
+    status: storedTasks.data[taskIndex].status,
   };
   const nextTasks = [...storedTasks.data];
   nextTasks[taskIndex] = updatedTask;

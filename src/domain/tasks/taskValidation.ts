@@ -45,3 +45,7 @@ export function validateTaskInput(input: Partial<TaskInput>): TaskValidationResu
     errors,
   };
 }
+
+export function validateTaskUpdateInput(input: Partial<TaskInput>): TaskValidationResult {
+  return validateTaskInput(input);
+}

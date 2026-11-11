@@ -5,7 +5,7 @@ import type {
   TaskStatus,
   TaskValidationError,
 } from "../../domain/tasks/taskTypes";
-import { validateTaskInput } from "../../domain/tasks/taskValidation";
+import { validateTaskInput, validateTaskUpdateInput } from "../../domain/tasks/taskValidation";
 import {
   deleteTask,
   getTask,
@@ -71,7 +71,7 @@ export function createTask(input: TaskCreateInput): TaskControllerResult<Task> {
 }
 
 export function updateTask(id: string, input: TaskUpdateInput): TaskControllerResult<Task> {
-  const validation = validateTaskInput(input);
+  const validation = validateTaskUpdateInput(input);
 
   if (!validation.isValid) {
     return validationFailure(validation.errors);

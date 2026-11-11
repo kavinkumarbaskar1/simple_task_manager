@@ -1,23 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
+import { TaskDashboard } from "./components/tasks/TaskDashboard";
 import { TaskForm } from "./components/tasks/TaskForm";
 import { listTasks } from "./features/tasks/taskController";
 import type { Task } from "./domain/tasks/taskTypes";
-
-const sampleTasks = [
-  {
-    title: "Review task list",
-    meta: "Pending",
-  },
-  {
-    title: "Draft project notes",
-    meta: "Pending",
-  },
-  {
-    title: "Archive completed items",
-    meta: "Completed",
-  },
-];
+import { taskStorageKey } from "./storage/localTaskStorage";
 
 export function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -39,28 +26,19 @@ export function App() {
     loadTasks();
   }, [loadTasks]);
 
-  const dashboardStats = useMemo(
-    () => [
-      { label: "Pending", value: String(tasks.filter((task) => task.status === "Pending").length) },
-      {
-        label: "Completed",
-        value: String(tasks.filter((task) => task.status === "Completed").length),
-      },
-      { label: "Due Soon", value: String(countDueSoonTasks(tasks)) },
-    ],
-    [tasks],
-  );
-
-  const visibleTasks = useMemo(() => {
-    if (tasks.length > 0) {
-      return tasks.map((task) => ({
-        title: task.title,
-        meta: `${task.status} - ${task.priority} - due ${task.dueDate}`,
-      }));
+  useEffect(() => {
+    function handleStorageChange(event: StorageEvent) {
+      if (event.key === taskStorageKey) {
+        loadTasks();
+      }
     }
 
-    return sampleTasks;
-  }, [tasks]);
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, [loadTasks]);
 
   function handleTaskCreated() {
     loadTasks();
@@ -83,64 +61,7 @@ export function App() {
 
       <TaskForm onTaskCreated={handleTaskCreated} />
 
-      <section className="dashboard" aria-label="Task dashboard overview">
-        <div className="stats-grid">
-          {dashboardStats.map((stat) => (
-            <article className="stat-card" key={stat.label}>
-              <span>{stat.label}</span>
-              <strong>{stat.value}</strong>
-            </article>
-          ))}
-        </div>
-
-        <div className="task-panel" aria-labelledby="today-heading">
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">Today</p>
-              <h2 id="today-heading">Task Dashboard</h2>
-            </div>
-            <div className="segmented-control" aria-label="Task status filter">
-              <button type="button" aria-pressed="true">
-                Pending
-              </button>
-              <button type="button" aria-pressed="false">
-                Completed
-              </button>
-            </div>
-          </div>
-
-          {taskError ? <p className="task-error">{taskError}</p> : null}
-
-          <ul className="task-list" aria-label="Tasks">
-            {visibleTasks.map((task) => (
-              <li key={task.title}>
-                <span className="task-check" aria-hidden="true" />
-                <div>
-                  <strong>{task.title}</strong>
-                  <span>{task.meta}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+      <TaskDashboard tasks={tasks} error={taskError} />
     </main>
   );
-}
-
-function countDueSoonTasks(tasks: readonly Task[]): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const dueSoonLimit = new Date(today);
-  dueSoonLimit.setDate(today.getDate() + 7);
-
-  return tasks.filter((task) => {
-    if (task.status !== "Pending") {
-      return false;
-    }
-
-    const dueDate = new Date(`${task.dueDate}T00:00:00`);
-    return dueDate >= today && dueDate <= dueSoonLimit;
-  }).length;
 }

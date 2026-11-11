@@ -1,3 +1,8 @@
+import { useEffect, useMemo, useState } from "react";
+
+import { listTasks } from "./features/tasks/taskController";
+import type { Task } from "./domain/tasks/taskTypes";
+
 const dashboardStats = [
   { label: "Pending", value: "8" },
   { label: "Completed Today", value: "3" },
@@ -20,6 +25,32 @@ const sampleTasks = [
 ];
 
 export function App() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [taskError, setTaskError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const result = listTasks();
+
+    if (result.ok) {
+      setTasks(result.data);
+      setTaskError(null);
+      return;
+    }
+
+    setTaskError(result.error.message);
+  }, []);
+
+  const visibleTasks = useMemo(() => {
+    if (tasks.length > 0) {
+      return tasks.map((task) => ({
+        title: task.title,
+        meta: `${task.status} - ${task.priority} - due ${task.dueDate}`,
+      }));
+    }
+
+    return sampleTasks;
+  }, [tasks]);
+
   return (
     <main className="app-shell" aria-labelledby="app-title">
       <section className="hero">
@@ -61,8 +92,10 @@ export function App() {
             </div>
           </div>
 
-          <ul className="task-list" aria-label="Sample tasks">
-            {sampleTasks.map((task) => (
+          {taskError ? <p className="task-error">{taskError}</p> : null}
+
+          <ul className="task-list" aria-label="Tasks">
+            {visibleTasks.map((task) => (
               <li key={task.title}>
                 <span className="task-check" aria-hidden="true" />
                 <div>

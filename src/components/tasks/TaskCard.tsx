@@ -7,9 +7,15 @@ interface TaskCardProps {
   task: Task;
   onTaskUpdated: (task: Task) => void;
   onTaskCompleted: (taskId: string) => void;
+  onTaskDeleted: (taskId: string) => void;
 }
 
-export function TaskCard({ task, onTaskUpdated, onTaskCompleted }: TaskCardProps) {
+export function TaskCard({
+  task,
+  onTaskUpdated,
+  onTaskCompleted,
+  onTaskDeleted,
+}: TaskCardProps) {
   const [isEditing, setIsEditing] = useState(false);
 
   function handleTaskUpdated(updatedTask: Task) {
@@ -59,6 +65,9 @@ export function TaskCard({ task, onTaskUpdated, onTaskCompleted }: TaskCardProps
           ) : null}
           <button type="button" onClick={() => setIsEditing(true)}>
             Edit
+          </button>
+          <button type="button" onClick={() => onTaskDeleted(task.id)}>
+            Delete
           </button>
         </div>
       </div>

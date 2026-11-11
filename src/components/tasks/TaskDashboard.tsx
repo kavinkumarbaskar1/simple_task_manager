@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type { Task } from "../../domain/tasks/taskTypes";
-import { completeTask, removeTask } from "../../features/tasks/taskController";
+import { completeTask, listTasks, removeTask } from "../../features/tasks/taskController";
+import { StatusFilter, type TaskStatusFilter } from "./StatusFilter";
 import { TaskCard } from "./TaskCard";
 import { TaskEmptyState } from "./TaskEmptyState";
 
@@ -11,15 +12,20 @@ interface TaskDashboardProps {
 }
 
 export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
+  const [allTasks, setAllTasks] = useState<Task[]>(() => [...tasks]);
   const [displayedTasks, setDisplayedTasks] = useState<Task[]>(() => [...tasks]);
+  const [selectedFilter, setSelectedFilter] = useState<TaskStatusFilter>("All");
+  const [filterError, setFilterError] = useState<string | null>(null);
   const [completionError, setCompletionError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
-    setDisplayedTasks([...tasks]);
+    setAllTasks([...tasks]);
+    setDisplayedTasks(filterTasks(tasks, selectedFilter));
+    setFilterError(null);
     setCompletionError(null);
     setDeleteError(null);
-  }, [tasks]);
+  }, [tasks, selectedFilter]);
 
   const dashboardStats = useMemo(
     () => [
@@ -37,9 +43,13 @@ export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
   );
 
   function handleTaskUpdated(updatedTask: Task) {
-    setDisplayedTasks((currentTasks) =>
-      currentTasks.map((task) => (task.id === updatedTask.id ? updatedTask : task)),
-    );
+    setAllTasks((currentTasks) => {
+      const nextTasks = currentTasks.map((task) =>
+        task.id === updatedTask.id ? updatedTask : task,
+      );
+      setDisplayedTasks(filterTasks(nextTasks, selectedFilter));
+      return nextTasks;
+    });
   }
 
   function handleTaskCompleted(taskId: string) {
@@ -51,9 +61,13 @@ export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
     }
 
     setCompletionError(null);
-    setDisplayedTasks((currentTasks) =>
-      currentTasks.map((task) => (task.id === result.data.id ? result.data : task)),
-    );
+    setAllTasks((currentTasks) => {
+      const nextTasks = currentTasks.map((task) =>
+        task.id === result.data.id ? result.data : task,
+      );
+      setDisplayedTasks(filterTasks(nextTasks, selectedFilter));
+      return nextTasks;
+    });
   }
 
   function handleTaskDeleted(taskId: string) {
@@ -65,7 +79,33 @@ export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
     }
 
     setDeleteError(null);
-    setDisplayedTasks((currentTasks) => currentTasks.filter((task) => task.id !== taskId));
+    setAllTasks((currentTasks) => {
+      const nextTasks = currentTasks.filter((task) => task.id !== taskId);
+      setDisplayedTasks(filterTasks(nextTasks, selectedFilter));
+      return nextTasks;
+    });
+  }
+
+  function handleFilterChange(nextFilter: TaskStatusFilter) {
+    setSelectedFilter(nextFilter);
+    setCompletionError(null);
+    setDeleteError(null);
+
+    if (nextFilter === "All") {
+      setFilterError(null);
+      setDisplayedTasks([...allTasks]);
+      return;
+    }
+
+    const result = listTasks({ status: nextFilter });
+
+    if (!result.ok) {
+      setFilterError(result.error.message);
+      return;
+    }
+
+    setFilterError(null);
+    setDisplayedTasks(result.data);
   }
 
   return (
@@ -85,17 +125,11 @@ export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
             <p className="eyebrow">Today</p>
             <h2 id="today-heading">Task Dashboard</h2>
           </div>
-          <div className="segmented-control" aria-label="Task status summary">
-            <button type="button" aria-pressed="true">
-              Pending
-            </button>
-            <button type="button" aria-pressed="false">
-              Completed
-            </button>
-          </div>
+          <StatusFilter selectedFilter={selectedFilter} onFilterChange={handleFilterChange} />
         </div>
 
         {error ? <p className="task-error">{error}</p> : null}
+        {filterError ? <p className="task-error">{filterError}</p> : null}
         {completionError ? <p className="task-error">{completionError}</p> : null}
         {deleteError ? <p className="task-error">{deleteError}</p> : null}
 
@@ -117,6 +151,14 @@ export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
       </div>
     </section>
   );
+}
+
+function filterTasks(tasks: readonly Task[], selectedFilter: TaskStatusFilter): Task[] {
+  if (selectedFilter === "All") {
+    return [...tasks];
+  }
+
+  return tasks.filter((task) => task.status === selectedFilter);
 }
 
 function countDueSoonTasks(tasks: readonly Task[]): number {

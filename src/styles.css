@@ -245,8 +245,8 @@ h2 {
 
 .segmented-control {
   display: inline-grid;
-  grid-template-columns: 1fr 1fr;
-  min-width: 230px;
+  grid-template-columns: repeat(3, 1fr);
+  min-width: 310px;
   padding: 4px;
   border: 1px solid #d4dde6;
   border-radius: 8px;

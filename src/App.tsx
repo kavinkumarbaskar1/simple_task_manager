@@ -1,13 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { TaskForm } from "./components/tasks/TaskForm";
 import { listTasks } from "./features/tasks/taskController";
 import type { Task } from "./domain/tasks/taskTypes";
-
-const dashboardStats = [
-  { label: "Pending", value: "8" },
-  { label: "Completed Today", value: "3" },
-  { label: "Due Soon", value: "2" },
-];
 
 const sampleTasks = [
   {
@@ -28,7 +23,7 @@ export function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [taskError, setTaskError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadTasks = useCallback(() => {
     const result = listTasks();
 
     if (result.ok) {
@@ -40,6 +35,22 @@ export function App() {
     setTaskError(result.error.message);
   }, []);
 
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
+
+  const dashboardStats = useMemo(
+    () => [
+      { label: "Pending", value: String(tasks.filter((task) => task.status === "Pending").length) },
+      {
+        label: "Completed",
+        value: String(tasks.filter((task) => task.status === "Completed").length),
+      },
+      { label: "Due Soon", value: String(countDueSoonTasks(tasks)) },
+    ],
+    [tasks],
+  );
+
   const visibleTasks = useMemo(() => {
     if (tasks.length > 0) {
       return tasks.map((task) => ({
@@ -50,6 +61,10 @@ export function App() {
 
     return sampleTasks;
   }, [tasks]);
+
+  function handleTaskCreated() {
+    loadTasks();
+  }
 
   return (
     <main className="app-shell" aria-labelledby="app-title">
@@ -65,6 +80,8 @@ export function App() {
           New Task
         </button>
       </section>
+
+      <TaskForm onTaskCreated={handleTaskCreated} />
 
       <section className="dashboard" aria-label="Task dashboard overview">
         <div className="stats-grid">
@@ -109,4 +126,21 @@ export function App() {
       </section>
     </main>
   );
+}
+
+function countDueSoonTasks(tasks: readonly Task[]): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const dueSoonLimit = new Date(today);
+  dueSoonLimit.setDate(today.getDate() + 7);
+
+  return tasks.filter((task) => {
+    if (task.status !== "Pending") {
+      return false;
+    }
+
+    const dueDate = new Date(`${task.dueDate}T00:00:00`);
+    return dueDate >= today && dueDate <= dueSoonLimit;
+  }).length;
 }

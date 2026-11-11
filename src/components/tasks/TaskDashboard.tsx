@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { Task } from "../../domain/tasks/taskTypes";
 import { TaskCard } from "./TaskCard";
@@ -10,17 +10,32 @@ interface TaskDashboardProps {
 }
 
 export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
+  const [displayedTasks, setDisplayedTasks] = useState<Task[]>(() => [...tasks]);
+
+  useEffect(() => {
+    setDisplayedTasks([...tasks]);
+  }, [tasks]);
+
   const dashboardStats = useMemo(
     () => [
-      { label: "Pending", value: String(tasks.filter((task) => task.status === "Pending").length) },
+      {
+        label: "Pending",
+        value: String(displayedTasks.filter((task) => task.status === "Pending").length),
+      },
       {
         label: "Completed",
-        value: String(tasks.filter((task) => task.status === "Completed").length),
+        value: String(displayedTasks.filter((task) => task.status === "Completed").length),
       },
-      { label: "Due Soon", value: String(countDueSoonTasks(tasks)) },
+      { label: "Due Soon", value: String(countDueSoonTasks(displayedTasks)) },
     ],
-    [tasks],
+    [displayedTasks],
   );
+
+  function handleTaskUpdated(updatedTask: Task) {
+    setDisplayedTasks((currentTasks) =>
+      currentTasks.map((task) => (task.id === updatedTask.id ? updatedTask : task)),
+    );
+  }
 
   return (
     <section className="dashboard" aria-label="Task dashboard overview">
@@ -51,10 +66,10 @@ export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
 
         {error ? <p className="task-error">{error}</p> : null}
 
-        {tasks.length > 0 ? (
+        {displayedTasks.length > 0 ? (
           <ul className="task-list" aria-label="Tasks">
-            {tasks.map((task) => (
-              <TaskCard key={task.id} task={task} />
+            {displayedTasks.map((task) => (
+              <TaskCard key={task.id} task={task} onTaskUpdated={handleTaskUpdated} />
             ))}
           </ul>
         ) : (

@@ -6,9 +6,10 @@ import { EditTaskForm } from "./EditTaskForm";
 interface TaskCardProps {
   task: Task;
   onTaskUpdated: (task: Task) => void;
+  onTaskCompleted: (taskId: string) => void;
 }
 
-export function TaskCard({ task, onTaskUpdated }: TaskCardProps) {
+export function TaskCard({ task, onTaskUpdated, onTaskCompleted }: TaskCardProps) {
   const [isEditing, setIsEditing] = useState(false);
 
   function handleTaskUpdated(updatedTask: Task) {
@@ -50,9 +51,16 @@ export function TaskCard({ task, onTaskUpdated }: TaskCardProps) {
             <dd>{task.status}</dd>
           </div>
         </dl>
-        <button type="button" onClick={() => setIsEditing(true)}>
-          Edit
-        </button>
+        <div className="task-actions">
+          {task.status === "Pending" ? (
+            <button type="button" onClick={() => onTaskCompleted(task.id)}>
+              Mark completed
+            </button>
+          ) : null}
+          <button type="button" onClick={() => setIsEditing(true)}>
+            Edit
+          </button>
+        </div>
       </div>
     </li>
   );

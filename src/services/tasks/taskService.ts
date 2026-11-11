@@ -6,6 +6,7 @@ import type {
 } from "../../domain/tasks/taskTypes";
 import { validateTaskInput, validateTaskUpdateInput } from "../../domain/tasks/taskValidation";
 import {
+  completeTaskInStorage,
   readTasksFromStorage,
   writeTasksToStorage,
   type TaskStorageError,
@@ -162,35 +163,20 @@ export function putTask(id: string, input: TaskUpdateInput): TaskServiceResponse
 
 export function patchTaskComplete(id: string): TaskServiceResponse<Task> {
   const route = `${taskRoute(id)}/complete`;
-  const storedTasks = readTasksFromStorage();
+  const completedTask = completeTaskInStorage(id);
 
-  if (!storedTasks.ok) {
-    return serviceError("PATCH", route, 500, storedTasks.error);
+  if (!completedTask.ok) {
+    return serviceError("PATCH", route, 500, completedTask.error);
   }
 
-  const taskIndex = storedTasks.data.findIndex((storedTask) => storedTask.id === id);
-
-  if (taskIndex === -1) {
+  if (!completedTask.data) {
     return serviceError("PATCH", route, 404, {
       code: "not_found",
       message: "Task was not found.",
     });
   }
 
-  const updatedTask: Task = {
-    ...storedTasks.data[taskIndex],
-    status: "Completed",
-  };
-  const nextTasks = [...storedTasks.data];
-  nextTasks[taskIndex] = updatedTask;
-
-  const saveError = writeTasksFromService(nextTasks, "PATCH", route);
-
-  if (saveError) {
-    return saveError;
-  }
-
-  return serviceSuccess("PATCH", route, 200, updatedTask);
+  return serviceSuccess("PATCH", route, 200, completedTask.data);
 }
 
 export function deleteTask(id: string): TaskServiceResponse<null> {

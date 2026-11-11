@@ -63,6 +63,41 @@ export function writeTasksToStorage(tasks: readonly Task[]): TaskStorageResult<T
   }
 }
 
+export function completeTaskInStorage(id: string): TaskStorageResult<Task | null> {
+  const storedTasks = readTasksFromStorage();
+
+  if (!storedTasks.ok) {
+    return storedTasks;
+  }
+
+  const taskIndex = storedTasks.data.findIndex((storedTask) => storedTask.id === id);
+
+  if (taskIndex === -1) {
+    return { ok: true, data: null };
+  }
+
+  const storedTask = storedTasks.data[taskIndex];
+
+  if (storedTask.status === "Completed") {
+    return { ok: true, data: storedTask };
+  }
+
+  const completedTask: Task = {
+    ...storedTask,
+    status: "Completed",
+  };
+  const nextTasks = [...storedTasks.data];
+  nextTasks[taskIndex] = completedTask;
+
+  const savedTasks = writeTasksToStorage(nextTasks);
+
+  if (!savedTasks.ok) {
+    return savedTasks;
+  }
+
+  return { ok: true, data: completedTask };
+}
+
 export function clearTasksFromStorage(): TaskStorageResult<null> {
   const storage = getStorage();
 

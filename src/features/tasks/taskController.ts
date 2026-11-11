@@ -30,6 +30,8 @@ export type TaskControllerResult<T> =
   | { ok: true; data: T; error: null }
   | { ok: false; data: null; error: TaskControllerError };
 
+export type TaskCompleteResult = TaskControllerResult<Task>;
+
 export interface TaskListOptions {
   status?: TaskStatus;
 }
@@ -86,7 +88,7 @@ export function updateTask(id: string, input: TaskUpdateInput): TaskControllerRe
   return controllerSuccess(response.data);
 }
 
-export function completeTask(id: string): TaskControllerResult<Task> {
+export function completeTask(id: string): TaskCompleteResult {
   const response = patchTaskComplete(id);
 
   if (!response.ok) {

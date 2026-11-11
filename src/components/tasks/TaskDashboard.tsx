@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type { Task } from "../../domain/tasks/taskTypes";
+import { completeTask } from "../../features/tasks/taskController";
 import { TaskCard } from "./TaskCard";
 import { TaskEmptyState } from "./TaskEmptyState";
 
@@ -11,9 +12,11 @@ interface TaskDashboardProps {
 
 export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
   const [displayedTasks, setDisplayedTasks] = useState<Task[]>(() => [...tasks]);
+  const [completionError, setCompletionError] = useState<string | null>(null);
 
   useEffect(() => {
     setDisplayedTasks([...tasks]);
+    setCompletionError(null);
   }, [tasks]);
 
   const dashboardStats = useMemo(
@@ -34,6 +37,20 @@ export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
   function handleTaskUpdated(updatedTask: Task) {
     setDisplayedTasks((currentTasks) =>
       currentTasks.map((task) => (task.id === updatedTask.id ? updatedTask : task)),
+    );
+  }
+
+  function handleTaskCompleted(taskId: string) {
+    const result = completeTask(taskId);
+
+    if (!result.ok) {
+      setCompletionError(result.error.message);
+      return;
+    }
+
+    setCompletionError(null);
+    setDisplayedTasks((currentTasks) =>
+      currentTasks.map((task) => (task.id === result.data.id ? result.data : task)),
     );
   }
 
@@ -65,11 +82,17 @@ export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
         </div>
 
         {error ? <p className="task-error">{error}</p> : null}
+        {completionError ? <p className="task-error">{completionError}</p> : null}
 
         {displayedTasks.length > 0 ? (
           <ul className="task-list" aria-label="Tasks">
             {displayedTasks.map((task) => (
-              <TaskCard key={task.id} task={task} onTaskUpdated={handleTaskUpdated} />
+              <TaskCard
+                key={task.id}
+                task={task}
+                onTaskUpdated={handleTaskUpdated}
+                onTaskCompleted={handleTaskCompleted}
+              />
             ))}
           </ul>
         ) : (

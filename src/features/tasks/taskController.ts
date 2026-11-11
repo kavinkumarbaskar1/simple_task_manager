@@ -31,6 +31,7 @@ export type TaskControllerResult<T> =
   | { ok: false; data: null; error: TaskControllerError };
 
 export type TaskCompleteResult = TaskControllerResult<Task>;
+export type TaskDeleteResult = TaskControllerResult<null>;
 
 export interface TaskListOptions {
   status?: TaskStatus;
@@ -98,7 +99,7 @@ export function completeTask(id: string): TaskCompleteResult {
   return controllerSuccess(response.data);
 }
 
-export function removeTask(id: string): TaskControllerResult<null> {
+export function removeTask(id: string): TaskDeleteResult {
   const response = deleteTask(id);
 
   if (!response.ok) {

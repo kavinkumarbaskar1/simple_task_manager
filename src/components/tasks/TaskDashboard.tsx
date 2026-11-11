@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type { Task } from "../../domain/tasks/taskTypes";
-import { completeTask } from "../../features/tasks/taskController";
+import { completeTask, removeTask } from "../../features/tasks/taskController";
 import { TaskCard } from "./TaskCard";
 import { TaskEmptyState } from "./TaskEmptyState";
 
@@ -13,10 +13,12 @@ interface TaskDashboardProps {
 export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
   const [displayedTasks, setDisplayedTasks] = useState<Task[]>(() => [...tasks]);
   const [completionError, setCompletionError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     setDisplayedTasks([...tasks]);
     setCompletionError(null);
+    setDeleteError(null);
   }, [tasks]);
 
   const dashboardStats = useMemo(
@@ -54,6 +56,18 @@ export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
     );
   }
 
+  function handleTaskDeleted(taskId: string) {
+    const result = removeTask(taskId);
+
+    if (!result.ok) {
+      setDeleteError(result.error.message);
+      return;
+    }
+
+    setDeleteError(null);
+    setDisplayedTasks((currentTasks) => currentTasks.filter((task) => task.id !== taskId));
+  }
+
   return (
     <section className="dashboard" aria-label="Task dashboard overview">
       <div className="stats-grid">
@@ -83,6 +97,7 @@ export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
 
         {error ? <p className="task-error">{error}</p> : null}
         {completionError ? <p className="task-error">{completionError}</p> : null}
+        {deleteError ? <p className="task-error">{deleteError}</p> : null}
 
         {displayedTasks.length > 0 ? (
           <ul className="task-list" aria-label="Tasks">
@@ -92,6 +107,7 @@ export function TaskDashboard({ tasks, error }: TaskDashboardProps) {
                 task={task}
                 onTaskUpdated={handleTaskUpdated}
                 onTaskCompleted={handleTaskCompleted}
+                onTaskDeleted={handleTaskDeleted}
               />
             ))}
           </ul>

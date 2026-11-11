@@ -7,6 +7,7 @@ import type {
 import { validateTaskInput, validateTaskUpdateInput } from "../../domain/tasks/taskValidation";
 import {
   completeTaskInStorage,
+  deleteTaskFromStorage,
   readTasksFromStorage,
   writeTasksToStorage,
   type TaskStorageError,
@@ -181,25 +182,17 @@ export function patchTaskComplete(id: string): TaskServiceResponse<Task> {
 
 export function deleteTask(id: string): TaskServiceResponse<null> {
   const route = taskRoute(id);
-  const storedTasks = readTasksFromStorage();
+  const deletedTask = deleteTaskFromStorage(id);
 
-  if (!storedTasks.ok) {
-    return serviceError("DELETE", route, 500, storedTasks.error);
+  if (!deletedTask.ok) {
+    return serviceError("DELETE", route, 500, deletedTask.error);
   }
 
-  const nextTasks = storedTasks.data.filter((storedTask) => storedTask.id !== id);
-
-  if (nextTasks.length === storedTasks.data.length) {
+  if (!deletedTask.data) {
     return serviceError("DELETE", route, 404, {
       code: "not_found",
       message: "Task was not found.",
     });
-  }
-
-  const saveError = writeTasksFromService(nextTasks, "DELETE", route);
-
-  if (saveError) {
-    return saveError;
   }
 
   return serviceSuccess("DELETE", route, 204, null);

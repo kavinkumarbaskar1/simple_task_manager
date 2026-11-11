@@ -98,6 +98,30 @@ export function completeTaskInStorage(id: string): TaskStorageResult<Task | null
   return { ok: true, data: completedTask };
 }
 
+export function deleteTaskFromStorage(id: string): TaskStorageResult<Task | null> {
+  const storedTasks = readTasksFromStorage();
+
+  if (!storedTasks.ok) {
+    return storedTasks;
+  }
+
+  const taskIndex = storedTasks.data.findIndex((storedTask) => storedTask.id === id);
+
+  if (taskIndex === -1) {
+    return { ok: true, data: null };
+  }
+
+  const deletedTask = storedTasks.data[taskIndex];
+  const nextTasks = storedTasks.data.filter((storedTask) => storedTask.id !== id);
+  const savedTasks = writeTasksToStorage(nextTasks);
+
+  if (!savedTasks.ok) {
+    return savedTasks;
+  }
+
+  return { ok: true, data: deletedTask };
+}
+
 export function clearTasksFromStorage(): TaskStorageResult<null> {
   const storage = getStorage();
 

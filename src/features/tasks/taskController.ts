@@ -35,7 +35,7 @@ export interface TaskListOptions {
 }
 
 export function listTasks(options: TaskListOptions = {}): TaskControllerResult<Task[]> {
-  const response = getTasks({ status: options.status });
+  const response = options.status ? getTasks({ status: options.status }) : getTasks();
 
   if (!response.ok) {
     return controllerFailure(response.error);

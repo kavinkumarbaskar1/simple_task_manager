@@ -4,8 +4,8 @@ import { dueDateAscendingSort } from "./taskTypes";
 export { dueDateAscendingSort };
 
 export function compareTasksByDueDateAsc(first: Task, second: Task): number {
-  const firstTime = toSortableDueDateTime(first.dueDate);
-  const secondTime = toSortableDueDateTime(second.dueDate);
+  const firstTime = toSortableDueDateValue(first.dueDate);
+  const secondTime = toSortableDueDateValue(second.dueDate);
 
   if (firstTime !== secondTime) {
     return firstTime - secondTime;
@@ -22,8 +22,8 @@ export function createDueDateAscendingSort(): TaskSortingContract {
   return dueDateAscendingSort;
 }
 
-function toSortableDueDateTime(dueDate: string): number {
-  const parsedTime = Date.parse(dueDate);
+function toSortableDueDateValue(dueDate: string): number {
+  const parsedTime = Date.parse(`${dueDate}T00:00:00Z`);
 
   return Number.isNaN(parsedTime) ? Number.POSITIVE_INFINITY : parsedTime;
 }
